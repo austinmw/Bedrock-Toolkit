@@ -8,6 +8,7 @@ from bedrock_toolkit.chat_history import (ChatHistoryStorage,
                                           create_chat_history_storage)
 from bedrock_toolkit.logger_manager import LoggerManager
 from bedrock_toolkit.model_runner import ModelRunner
+from bedrock_toolkit.context_appender import ContextAppender
 
 logger = LoggerManager.get_logger()
 
@@ -15,15 +16,17 @@ class ConversationManager:
     def __init__(
         self,
         model_runner: ModelRunner,
+        context_appender: ContextAppender | None = None,
         max_turns: int | None = None,
-        cache_config: dict[str, Any] | None = None,
         chat_history_config: dict[str, Any] = {"type": "local"},
+        cache_config: dict[str, Any] | None = None,
     ) -> None:
         self.model_runner = model_runner
+        self.context_appender = context_appender
         self.max_turns = max_turns
         self.turn_count = 0
-        self.cache_service: CacheService | None = create_cache_service(cache_config) if cache_config else None
         self.chat_history: ChatHistoryStorage = create_chat_history_storage(chat_history_config)
+        self.cache_service: CacheService | None = create_cache_service(cache_config) if cache_config else None
 
     @property
     def messages(self) -> list[dict[str, Any]]:
@@ -98,6 +101,9 @@ class ConversationManager:
             The model's response and response data.
         """
         start_time = time.time()
+
+        if self.context_appender:
+            text = self.context_appender.append_context(text)
 
         self.add_user_message(text)
 

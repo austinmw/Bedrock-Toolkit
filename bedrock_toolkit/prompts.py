@@ -24,12 +24,13 @@ ERROR_PROMPT_SUFFIX = dedent(
     Do not output the same incorrect schema again. 
     Also, before returning a tool, acknowledge the error in your text response, 
     explain why you think it occurred, and describe how you plan to address it. 
+    The user has not seen the error yet, so do not say, "I apologize for the previous error." 
     You may begin responding to a first error with something like, 
-    'I encountered an error because ...' 
+    "I encountered an error because ..." 
     If provided more than one error, respond appropriately to the last one. For example, 
-    you might say, 'I encountered another error because ...' 
+    you might say, "I encountered another error because ..." 
     Remember that a missing parameter error may be due to the parameter actually missing, 
     or it could be due to the parameter being present but not in the expected location. 
-    Finally, you should not include a top-level 'properties' or 'json' key in tool call requests.
+    Finally, you should not include a top-level 'properties' or 'json' key in tool call requests. 
     """
 )

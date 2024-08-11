@@ -1,7 +1,7 @@
 """ ModelRunner class for running a model and processing the output. """
 import json
 from collections import Counter
-from typing import Any, Dict, Generator, List, Literal, Optional
+from typing import Any, Generator, Literal
 
 from bedrock_toolkit.logger_manager import LoggerManager
 from bedrock_toolkit.prompts import ERROR_PROMPT_SUFFIX, SYSTEM_PROMPT
@@ -36,24 +36,24 @@ class ModelRunner:
     def generate_text(
         self,
         model_id: str,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         use_streaming: bool,
         inference_config: dict[str, Any] = {"maxTokens": 4096, "temperature": 0},
-        invoke_limit: Optional[int] = None,
+        invoke_limit: int | None = None,
         max_retries: int = 3
-    ) -> Generator[str | Dict[str, Any], None, None]:
+    ) -> Generator[str | dict[str, Any], None, None]:
         """
         Generate text using the supplied Amazon Bedrock model with built-in retry logic.
 
         Args:
             model_id (str): The ID of the model to use.
-            messages (List[Dict[str, Any]]): The conversation history.
+            messages (list[dict[str, Any]]): The conversation history.
             use_streaming (bool): Whether to use streaming or not.
-            invoke_limit (Optional[int]): Maximum number of model invocations.
+            invoke_limit (int | None): Maximum number of model invocations.
             max_retries (int): Maximum number of retry attempts.
 
         Yields:
-            str | Dict[str, Any]: Generated text chunks or final response data.
+            str | dict[str, Any]: Generated text chunks or final response data.
         """
 
         self.inference_config = inference_config
@@ -161,21 +161,21 @@ class ModelRunner:
     def _generate_text_core(
         self,
         model_id: str,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         use_streaming: bool,
-        invoke_limit: Optional[int],
-    ) -> Generator[str | Dict[str, Any], None, None]:
+        invoke_limit: int | None,
+    ) -> Generator[str | dict[str, Any], None, None]:
         """
         Core logic for generating text using the Amazon Bedrock model.
 
         Args:
             model_id (str): The ID of the model to use.
-            messages (List[Dict[str, Any]]): The conversation history.
+            messages (list[dict[str, Any]]): The conversation history.
             use_streaming (bool): Whether to use streaming or not.
-            invoke_limit (Optional[int]): Maximum number of model invocations.
+            invoke_limit (int | None): Maximum number of model invocations.
 
         Yields:
-            str | Dict[str, Any]: Generated text chunks or final response data.
+            str | dict[str, Any]: Generated text chunks or final response data.
         """
         stop_reason = 'tool_use'
         first_tool_use = True

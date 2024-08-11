@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from bedrock_toolkit import (BedrockClient, ConversationManager, LoggerManager,
                              ModelRunner, ToolManager)
+from bedrock_toolkit.context_appender import DynamicFewShotContextAppender
 from bedrock_toolkit.streamlit_utils import (chat_write_stream,
                                              clear_chat_history,
                                              create_sidebar_options,
@@ -19,6 +20,8 @@ def main() -> None:
 
     st.title("Conversational LLM Agent")
     st.subheader("City Weather and Info Example (Mock APIs)")
+
+    aws_region = "us-east-1"
 
     # Step 1: Create sidebar options (excluding tool display for now)
     options = create_sidebar_options()
@@ -90,9 +93,33 @@ def main() -> None:
 
     @st.cache_resource
     def get_conversation_manager() -> ConversationManager:
+
+        # Example few-shot examples
+        few_shot_examples = [
+            {
+                "question": "What is the total revenue for 2022?",
+                "sql_query": "SELECT SUM(revenue) FROM sales WHERE year = 2022;"
+            },
+            {
+                "question": "How many users signed up in 2023?",
+                "sql_query": "SELECT COUNT(user_id) FROM users WHERE signup_date BETWEEN '2023-01-01' AND '2023-12-31';"
+            },
+            {
+                "question": "What are the top 10 products by sales?",
+                "sql_query": "SELECT product_name, SUM(sales) FROM sales GROUP BY product_name ORDER BY SUM(sales) DESC LIMIT 10;"
+            }
+        ]
+
+        # Initialize the context appender
+        context_appender = DynamicFewShotContextAppender(
+            region=aws_region,
+            few_shot_examples=few_shot_examples,
+            n_few_shot_examples=2,
+        )
+
         return ConversationManager(
             model_runner=get_model_runner(),
-            max_turns=5,  # Limit the conversation to N turns, or None for unlimited turns
+            context_appender=context_appender,
         )
 
     # Initialize or retrieve session state variables
@@ -130,7 +157,7 @@ def main() -> None:
                         use_streaming=options["use_streaming"],
                         invoke_limit=options["invoke_limit"],
                         max_retries=options["max_retries"],
-                        write_stream=chat_write_stream  # Using the chat_write_stream function
+                        write_stream=chat_write_stream,
                     )
 
                     # Add assistant response to Streamlit chat history

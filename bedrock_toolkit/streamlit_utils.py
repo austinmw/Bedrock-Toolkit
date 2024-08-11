@@ -190,13 +190,35 @@ class Options(TypedDict):
     max_retries: int
     invoke_limit: int | None
 
-def create_sidebar_options() -> Options:
+def create_sidebar_options(
+    default_model: str = "anthropic.claude-3-haiku-20240307-v1:0",
+    default_invoke_limit: int | None = None
+) -> Options:
     """
     Create sidebar options for the Streamlit app.
+
+    Args:
+        default_model (str): The model to be selected by default. 
+                             Should be one of the available model IDs.
+        default_invoke_limit (int | None): The default invoke limit. 
+                                           If None, no limit is set by default.
 
     Returns:
         dict[str, Any]: A dictionary containing the selected options.
     """
+
+    # Expand sidebar width
+    st.markdown(
+        """
+       <style>
+       [data-testid="stSidebar"][aria-expanded="true"]{
+           min-width: 425px;
+           max-width: 425px;
+       }
+       """,
+        unsafe_allow_html=True,
+    )
+
     st.sidebar.title("Model Options")
 
     options: Options = {
@@ -215,31 +237,43 @@ def create_sidebar_options() -> Options:
     )
     options["log_level"] = log_level  # type: ignore
 
-    options["model_id"] = str(st.sidebar.selectbox(
+    model_options = [
+        "anthropic.claude-3-haiku-20240307-v1:0",
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "anthropic.claude-3-sonnet-20240229-v1:0",
+        "anthropic.claude-3-opus-20240229-v1:0",
+        "mistral.mistral-large-2402-v1:0",
+        "mistral.mistral-small-2402-v1:0",
+        "cohere.command-r-plus-v1:0",
+        "cohere.command-r-v1:0",
+    ]
+
+    # Set the default index based on the default_model parameter
+    default_index = model_options.index(default_model) if default_model in model_options else 0
+
+    selected_model = st.sidebar.selectbox(
         "Select Model",
-        [
-            "anthropic.claude-3-haiku-20240307-v1:0",
-            "anthropic.claude-3-5-sonnet-20240620-v1:0",
-            "anthropic.claude-3-sonnet-20240229-v1:0",
-            "anthropic.claude-3-opus-20240229-v1:0",
-            "mistral.mistral-large-2402-v1:0",
-            "mistral.mistral-small-2402-v1:0",
-            "cohere.command-r-plus-v1:0",
-            "cohere.command-r-v1:0",
-        ],
-        index=2,
-    ))
+        model_options,
+        index=default_index,
+    )
+
+    options["model_id"] = selected_model
 
     options["use_streaming"] = bool(st.sidebar.checkbox("Use Streaming", value=True))
 
     options["max_retries"] = int(st.sidebar.number_input("Max Retries", min_value=1, max_value=10, value=3))
 
-    invoke_limit_input = st.sidebar.number_input("Invoke Limit", min_value=1, max_value=20, value=None)
+    invoke_limit_input = st.sidebar.number_input(
+        "Invoke Limit",
+        min_value=1,
+        max_value=20,
+        value=default_invoke_limit
+    )
     options["invoke_limit"] = int(invoke_limit_input) if invoke_limit_input is not None else None
 
     return options
 
-def clear_chat_history():
+def clear_chat_history(rerun: bool = True):
     st.session_state.messages = []
     st.session_state.conversation.clear_messages()
     st.experimental_rerun()
