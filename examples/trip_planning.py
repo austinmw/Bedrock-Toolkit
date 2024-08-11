@@ -1,4 +1,4 @@
-""" Streamlit application for AI-powered trip planning. """
+"""Streamlit application for AI-powered trip planning."""
 
 import streamlit as st
 from typing import Any, Callable
@@ -14,6 +14,7 @@ from bedrock_toolkit.streamlit_utils import (
     write_stream,
     display_model_response,
 )
+
 
 def main() -> None:
     """
@@ -50,13 +51,17 @@ def main() -> None:
     class WeatherForecast(BaseModel):
         city: str = Field(..., description="Name of the city")
         country: str = Field(..., description="Country where the city is located")
-        start_date: str = Field(..., description="Start date of the forecast (YYYY-MM-DD)")
+        start_date: str = Field(
+            ..., description="Start date of the forecast (YYYY-MM-DD)"
+        )
         end_date: str = Field(..., description="End date of the forecast (YYYY-MM-DD)")
 
     class TouristAttractions(BaseModel):
         city: str = Field(..., description="Name of the city")
         country: str = Field(..., description="Country where the city is located")
-        num_attractions: int = Field(5, description="Number of top attractions to return")
+        num_attractions: int = Field(
+            5, description="Number of top attractions to return"
+        )
 
     class FlightSearch(BaseModel):
         origin: str = Field(..., description="Origin city")
@@ -65,16 +70,20 @@ def main() -> None:
 
     # Step 4: Define tool processors
     def get_weather_forecast(request: WeatherForecast) -> dict[str, Any]:
-        logger.info(f"Getting weather forecast for {request.city}, {request.country}...")
+        logger.info(
+            f"Getting weather forecast for {request.city}, {request.country}..."
+        )
         start_date = datetime.strptime(request.start_date, "%Y-%m-%d")
         forecast = []
         for i in range(3):
             date = start_date + timedelta(days=i)
-            forecast.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "temperature": 20 + i,
-                "condition": "Partly cloudy" if i % 2 == 0 else "Sunny"
-            })
+            forecast.append(
+                {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "temperature": 20 + i,
+                    "condition": "Partly cloudy" if i % 2 == 0 else "Sunny",
+                }
+            )
         return {"forecast": forecast}
 
     def get_tourist_attractions(request: TouristAttractions) -> dict[str, Any]:
@@ -84,22 +93,43 @@ def main() -> None:
             "Louvre Museum",
             "Notre-Dame Cathedral",
             "Arc de Triomphe",
-            "Champs-Élysées"
+            "Champs-Élysées",
         ]
-        return {"attractions": attractions[:request.num_attractions]}
+        return {"attractions": attractions[: request.num_attractions]}
 
     def search_flights(request: FlightSearch) -> dict[str, Any]:
-        logger.info(f"Searching flights from {request.origin} to {request.destination}...")
+        logger.info(
+            f"Searching flights from {request.origin} to {request.destination}..."
+        )
         return {
             "flights": [
-                {"airline": "Air France", "departure": "08:00", "arrival": "21:00", "price": "$800"},
-                {"airline": "Delta", "departure": "10:30", "arrival": "23:30", "price": "$750"},
-                {"airline": "United", "departure": "14:00", "arrival": "03:00", "price": "$700"}
+                {
+                    "airline": "Air France",
+                    "departure": "08:00",
+                    "arrival": "21:00",
+                    "price": "$800",
+                },
+                {
+                    "airline": "Delta",
+                    "departure": "10:30",
+                    "arrival": "23:30",
+                    "price": "$750",
+                },
+                {
+                    "airline": "United",
+                    "departure": "14:00",
+                    "arrival": "03:00",
+                    "price": "$700",
+                },
             ]
         }
 
     # Step 5: Set up tools
-    tool_schemas: list[type[BaseModel]] = [WeatherForecast, TouristAttractions, FlightSearch]
+    tool_schemas: list[type[BaseModel]] = [
+        WeatherForecast,
+        TouristAttractions,
+        FlightSearch,
+    ]
     tool_processors: dict[str, Callable[[Any], dict[str, Any]]] = {
         "WeatherForecast": get_weather_forecast,
         "TouristAttractions": get_tourist_attractions,
@@ -123,8 +153,8 @@ def main() -> None:
     origin_city = st.text_input("Origin City", value="New York")
 
     if st.button("Plan My Trip"):
-        user_prompt = f"""Plan a 3-day trip to {city}, {country} for next month. 
-        Provide information about the weather, top attractions, and available flights from {origin_city}. 
+        user_prompt = f"""Plan a 3-day trip to {city}, {country} for next month.
+        Provide information about the weather, top attractions, and available flights from {origin_city}.
         """
 
         try:
@@ -146,12 +176,13 @@ def main() -> None:
             # Display the response
             display_model_response(streamed_text, response_data)
 
-            st.success('Trip planning complete!')
+            st.success("Trip planning complete!")
 
         except Exception as e:
             logger.exception("An unexpected error occurred")
             st.error("An error occurred while planning your trip. Please try again.")
             st.exception(e)
+
 
 if __name__ == "__main__":
     main()

@@ -1,21 +1,28 @@
-""" Example of a conversational agent using the Bedrock Toolkit """
+"""Example of a conversational agent using the Bedrock Toolkit"""
 
 from typing import Any, Callable
 
 import streamlit as st
 from pydantic import BaseModel, Field
 
-from bedrock_toolkit import (BedrockClient, ConversationManager, LoggerManager,
-                             ModelRunner, ToolManager)
-from bedrock_toolkit.streamlit_utils import (chat_write_stream,
-                                             clear_chat_history,
-                                             create_sidebar_options,
-                                             display_messages,
-                                             display_model_response)
+from bedrock_toolkit import (
+    BedrockClient,
+    ConversationManager,
+    LoggerManager,
+    ModelRunner,
+    ToolManager,
+)
+from bedrock_toolkit.streamlit_utils import (
+    chat_write_stream,
+    clear_chat_history,
+    create_sidebar_options,
+    display_messages,
+    display_model_response,
+)
 
 
 def main() -> None:
-    """ Conversational LLM Agent Weather and City Information Example (Mock APIs) """
+    """Conversational LLM Agent Weather and City Information Example (Mock APIs)"""
 
     st.title("Conversational LLM Agent")
     st.subheader("City Weather and Info Example (Mock APIs)")
@@ -30,7 +37,9 @@ def main() -> None:
 
     # Step 3: Define your Pydantic models
     class WeatherRequest(BaseModel):
-        city: str = Field(..., description="Name of the city to get weather information for")
+        city: str = Field(
+            ..., description="Name of the city to get weather information for"
+        )
         country: str = Field(..., description="Country where the city is located")
 
     class CityInfoRequest(BaseModel):
@@ -39,21 +48,25 @@ def main() -> None:
 
     # Step 4: Define your tool processors
     def get_weather_info(request: WeatherRequest) -> dict[str, str | int]:
-        logger.debug(f"Received weather request: city={request.city}, country={request.country}")
+        logger.debug(
+            f"Received weather request: city={request.city}, country={request.country}"
+        )
         weather_data: dict[str, str | int] = {
             "temperature": "75 degrees Fahrenheit",
             "condition": "Partly cloudy",
-            "humidity": int(65)
+            "humidity": int(65),
         }
         logger.info(f"Returning weather data: {weather_data}")
         return weather_data
 
     def get_city_info(request: CityInfoRequest) -> dict[str, str | int]:
-        logger.debug(f"Received city info request: city={request.city}, country={request.country}")
+        logger.debug(
+            f"Received city info request: city={request.city}, country={request.country}"
+        )
         city_data: dict[str, str | int] = {
             "population": 8_419_000,
             "country": "United States",
-            "timezone": "Eastern Time Zone (ET)"
+            "timezone": "Eastern Time Zone (ET)",
         }
         logger.info(f"Returning city info data: {city_data}")
         return city_data
@@ -130,11 +143,13 @@ def main() -> None:
                         use_streaming=options["use_streaming"],
                         invoke_limit=options["invoke_limit"],
                         max_retries=options["max_retries"],
-                        write_stream=chat_write_stream  # Using the chat_write_stream function
+                        write_stream=chat_write_stream,  # Using the chat_write_stream function
                     )
 
                     # Add assistant response to Streamlit chat history
-                    st.session_state.messages.append({"role": "assistant", "content": streamed_text})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": streamed_text}
+                    )
 
                 except Exception as e:
                     logger.exception("An unexpected error occurred")
@@ -149,10 +164,13 @@ def main() -> None:
 
     # Display the model response or messages if they were successful
     if "streamed_text" in st.session_state and "response_data" in st.session_state:
-        display_model_response(st.session_state.streamed_text, st.session_state.response_data)
+        display_model_response(
+            st.session_state.streamed_text, st.session_state.response_data
+        )
     # If there was an error, only display the messages
     elif "messages" in st.session_state and len(st.session_state.messages):
         display_messages(st.session_state.messages)
+
 
 if __name__ == "__main__":
     main()

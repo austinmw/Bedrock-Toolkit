@@ -1,4 +1,5 @@
-""" Common DynamoDB utility functions """
+"""Common DynamoDB utility functions"""
+
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -11,7 +12,8 @@ from bedrock_toolkit.logger_manager import LoggerManager
 
 logger = LoggerManager.get_logger()
 
-TableState = Literal['ACTIVE', 'CREATING', 'UPDATING', 'DELETING', 'NOT_EXISTS']
+TableState = Literal["ACTIVE", "CREATING", "UPDATING", "DELETING", "NOT_EXISTS"]
+
 
 class TableLock:
     def __init__(self, table, lock_key, ttl_seconds=60) -> None:
@@ -20,29 +22,32 @@ class TableLock:
         self.ttl_seconds = ttl_seconds
 
     def __enter__(self) -> None:
-        expiration_time = int((datetime.now() + timedelta(seconds=self.ttl_seconds)).timestamp())
+        expiration_time = int(
+            (datetime.now() + timedelta(seconds=self.ttl_seconds)).timestamp()
+        )
         retry_count = 0
         while retry_count < 5:
             try:
                 self.table.put_item(
                     Item={
-                        'chat_id': self.lock_key,
-                        'locked': True,
-                        'expiration': expiration_time
+                        "chat_id": self.lock_key,
+                        "locked": True,
+                        "expiration": expiration_time,
                     },
-                    ConditionExpression='attribute_not_exists(chat_id) OR expiration < :now',
-                    ExpressionAttributeValues={':now': int(datetime.now().timestamp())}
+                    ConditionExpression="attribute_not_exists(chat_id) OR expiration < :now",
+                    ExpressionAttributeValues={":now": int(datetime.now().timestamp())},
                 )
                 return
             except ClientError as e:
-                if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
                     raise
                 time.sleep(1)
                 retry_count += 1
         raise Exception("Failed to acquire lock after 5 attempts")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.table.delete_item(Key={'chat_id': self.lock_key})
+        self.table.delete_item(Key={"chat_id": self.lock_key})
+
 
 class DynamoDBBase:
     def __init__(
@@ -57,9 +62,9 @@ class DynamoDBBase:
         self.delete_existing_table = delete_existing_table
         self.chat_id = chat_id
 
-        self.dynamodb = boto3.resource('dynamodb', region_name=self.region)
+        self.dynamodb = boto3.resource("dynamodb", region_name=self.region)
         self.table = self.dynamodb.Table(self.table_name)
-        self.lock_key = 'table_lock'
+        self.lock_key = "table_lock"
 
         # Ensure the DynamoDB table exists, delete it first if the option is set
         self.ensure_table_exists(delete_existing_table)
@@ -78,24 +83,30 @@ class DynamoDBBase:
 
                 if delete_existing:
                     logger.info("Delete existing table flag is set to True")
-                    if state in ['ACTIVE', 'CREATING', 'UPDATING']:
-                        logger.info(f"Attempting to delete existing table {self.table_name}")
+                    if state in ["ACTIVE", "CREATING", "UPDATING"]:
+                        logger.info(
+                            f"Attempting to delete existing table {self.table_name}"
+                        )
                         self._delete_table()
                         self._wait_for_table_deletion()
-                    elif state == 'DELETING':
-                        logger.info(f"Table {self.table_name} is already in DELETING state")
+                    elif state == "DELETING":
+                        logger.info(
+                            f"Table {self.table_name} is already in DELETING state"
+                        )
                         self._wait_for_table_deletion()
                     self._create_table()
                     self._wait_for_table_creation()
                     return
-                elif state == 'ACTIVE':
+                elif state == "ACTIVE":
                     logger.info(f"Table {self.table_name} is ready for use")
                     return
-                elif state in ['CREATING', 'UPDATING']:
-                    logger.info(f"Table {self.table_name} is in {state} state, waiting for it to become active")
+                elif state in ["CREATING", "UPDATING"]:
+                    logger.info(
+                        f"Table {self.table_name} is in {state} state, waiting for it to become active"
+                    )
                     self._wait_for_table_creation()
                     return
-                elif state == 'NOT_EXISTS':
+                elif state == "NOT_EXISTS":
                     logger.info(f"Table {self.table_name} does not exist, creating it")
                     self._create_table()
                     self._wait_for_table_creation()
@@ -112,11 +123,13 @@ class DynamoDBBase:
 
     def _get_table_state(self) -> TableState:
         try:
-            response = self.dynamodb.meta.client.describe_table(TableName=self.table_name)
-            return response['Table']['TableStatus']
+            response = self.dynamodb.meta.client.describe_table(
+                TableName=self.table_name
+            )
+            return response["Table"]["TableStatus"]
         except ClientError as e:
-            if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                return 'NOT_EXISTS'
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                return "NOT_EXISTS"
             raise
 
     def _create_table(self) -> None:
@@ -126,10 +139,10 @@ class DynamoDBBase:
                 TableName=self.table_name,
                 KeySchema=self._get_key_schema(),
                 AttributeDefinitions=self._get_attribute_definitions(),
-                BillingMode='PAY_PER_REQUEST'
+                BillingMode="PAY_PER_REQUEST",
             )
         except ClientError as e:
-            if e.response['Error']['Code'] != 'ResourceInUseException':
+            if e.response["Error"]["Code"] != "ResourceInUseException":
                 raise
 
     def _delete_table(self) -> None:
@@ -137,14 +150,16 @@ class DynamoDBBase:
         try:
             self.dynamodb.meta.client.delete_table(TableName=self.table_name)
         except ClientError as e:
-            if e.response['Error']['Code'] != 'ResourceNotFoundException':
+            if e.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise
 
     def _wait_for_table_creation(self) -> None:
         logger.info(f"Waiting for table {self.table_name} to become active")
-        waiter = self.dynamodb.meta.client.get_waiter('table_exists')
+        waiter = self.dynamodb.meta.client.get_waiter("table_exists")
         try:
-            waiter.wait(TableName=self.table_name, WaiterConfig={'Delay': 5, 'MaxAttempts': 20})
+            waiter.wait(
+                TableName=self.table_name, WaiterConfig={"Delay": 5, "MaxAttempts": 20}
+            )
             logger.info(f"Table {self.table_name} is now active")
         except WaiterError as e:
             logger.error(f"Error waiting for table to become active: {e}")
@@ -152,9 +167,11 @@ class DynamoDBBase:
 
     def _wait_for_table_deletion(self) -> None:
         logger.info(f"Waiting for table {self.table_name} to be deleted")
-        waiter = self.dynamodb.meta.client.get_waiter('table_not_exists')
+        waiter = self.dynamodb.meta.client.get_waiter("table_not_exists")
         try:
-            waiter.wait(TableName=self.table_name, WaiterConfig={'Delay': 5, 'MaxAttempts': 20})
+            waiter.wait(
+                TableName=self.table_name, WaiterConfig={"Delay": 5, "MaxAttempts": 20}
+            )
             logger.info(f"Table {self.table_name} has been deleted")
         except WaiterError as e:
             logger.error(f"Error waiting for table to be deleted: {e}")
@@ -184,4 +201,6 @@ class DynamoDBBase:
 
     def _get_attribute_definitions(self):
         # This method should be overridden by subclasses
-        raise NotImplementedError("Subclasses must implement _get_attribute_definitions")
+        raise NotImplementedError(
+            "Subclasses must implement _get_attribute_definitions"
+        )

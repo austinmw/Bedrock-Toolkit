@@ -11,7 +11,6 @@ from bedrock_toolkit.tool_manager import ToolManager
 from bedrock_toolkit.model_runner import ModelRunner
 from bedrock_toolkit.conversation_manager import ConversationManager
 from bedrock_toolkit.streamlit_utils import (
-    clear_chat_history,
     create_sidebar_options,
     chat_write_stream,
     display_model_response,
@@ -20,15 +19,21 @@ from bedrock_toolkit.streamlit_utils import (
 
 st.set_page_config(layout="wide")
 
+
 # Define your Pydantic model
 @st.cache_resource
 def get_workout_plan_class(num_days: int = 30):
     class WorkoutDay(BaseModel):
         description: str = Field(description="Description of the workout for this day.")
-        duration: int = Field(ge=0, description="Duration of the workout in minutes. Every day requires a duration, even rest days (use 0).")
+        duration: int = Field(
+            ge=0,
+            description="Duration of the workout in minutes. Every day requires a duration, even rest days (use 0).",
+        )
 
     class WorkoutPlan(BaseModel):
-        days: Annotated[List[WorkoutDay], Len(num_days)] = Field(description=f"List of exactly {num_days} workout days.")
+        days: Annotated[List[WorkoutDay], Len(num_days)] = Field(
+            description=f"List of exactly {num_days} workout days."
+        )
 
         @property
         def total_duration(self) -> int:
@@ -50,9 +55,9 @@ def get_workout_plan_class(num_days: int = 30):
 
 
 def display_workout_plan(workout_plan):
-
     # Custom CSS to make the table full-width
-    st.markdown("""
+    st.markdown(
+        """
     <style>
     .stDataFrame {
         width: 100%;
@@ -64,7 +69,9 @@ def display_workout_plan(workout_plan):
         width: 100%;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     st.subheader("Your Workout Plan")
 
@@ -73,25 +80,30 @@ def display_workout_plan(workout_plan):
 
     # Iterate through each day
     for day_num, day in enumerate(workout_plan.days, start=1):
-        data.append({
-            'Day': day_num,
-            'Description': day.description,
-            'Duration (minutes)': day.duration
-        })
+        data.append(
+            {
+                "Day": day_num,
+                "Description": day.description,
+                "Duration (minutes)": day.duration,
+            }
+        )
 
     # Create a DataFrame
     df = pd.DataFrame(data)
 
     # Set index
-    df.set_index('Day', inplace=True)
+    df.set_index("Day", inplace=True)
 
     # Display the DataFrame
     def highlight_zero(val):
-        return ['background-color: lightgreen' if v == 0 else '' for v in val]
+        return ["background-color: lightgreen" if v == 0 else "" for v in val]
 
     # Use a container to make the table full-width
     with st.container():
-        st.dataframe(df.style.apply(highlight_zero, subset=['Duration (minutes)']), use_container_width=True)
+        st.dataframe(
+            df.style.apply(highlight_zero, subset=["Duration (minutes)"]),
+            use_container_width=True,
+        )
 
     # Access properties of the workout plan
     st.write(f"Total duration: {workout_plan.total_duration} minutes")
@@ -99,7 +111,7 @@ def display_workout_plan(workout_plan):
 
 
 def main() -> None:
-    """ Workout Planner App """
+    """Workout Planner App"""
 
     st.title("Workout Planner")
     st.subheader("Personalized Cardio and Weight Loss Program")
@@ -128,8 +140,12 @@ def main() -> None:
         weight = st.number_input("Weight (lbs)", min_value=80, max_value=400, value=175)
         gender = st.selectbox("Gender", ["Male", "Female", "Other"])
         height_ft = st.number_input("Height (feet)", min_value=4, max_value=7, value=6)
-        height_in = st.number_input("Height (inches)", min_value=0, max_value=11, value=0)
-        num_days = int(st.number_input("Number of days", min_value=1, max_value=90, value=30))
+        height_in = st.number_input(
+            "Height (inches)", min_value=0, max_value=11, value=0
+        )
+        num_days = int(
+            st.number_input("Number of days", min_value=1, max_value=90, value=30)
+        )
 
         submit_button = st.form_submit_button("Generate Workout Plan")
 
@@ -214,11 +230,13 @@ def main() -> None:
                         use_streaming=options["use_streaming"],
                         invoke_limit=options["invoke_limit"],
                         max_retries=options["max_retries"],
-                        write_stream=chat_write_stream
+                        write_stream=chat_write_stream,
                     )
 
                     # Add assistant response to chat history
-                    st.session_state.messages.append({"role": "assistant", "content": streamed_text})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": streamed_text}
+                    )
 
                     # Store the workout plan
                     if response_data:
@@ -238,6 +256,7 @@ def main() -> None:
                     st.error("An error occurred. Consider increasing the max retries.")
                     st.exception(e)
                     display_messages(st.session_state.conversation.messages)
+
 
 if __name__ == "__main__":
     main()

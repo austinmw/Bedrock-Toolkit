@@ -1,4 +1,5 @@
-""" ToolManager class for managing tools and tool processing. """
+"""ToolManager class for managing tools and tool processing."""
+
 import inspect
 import json
 import types
@@ -10,11 +11,13 @@ from bedrock_toolkit.logger_manager import LoggerManager
 
 logger = LoggerManager.get_logger()
 
+
 class ToolManager:
     def __init__(
         self,
         tool_schemas: list[type[BaseModel]],
-        tool_processors: dict[str, Callable[..., Any]] | None = None) -> None:
+        tool_processors: dict[str, Callable[..., Any]] | None = None,
+    ) -> None:
         """
         Initialize the ToolManager.
 
@@ -35,6 +38,7 @@ class ToolManager:
         defined in `tool_schemas`, as well as any nested models. It ensures that all relevant models
         are registered and available for processing.
         """
+
         def register_pydantic_model(model: Type[BaseModel]) -> None:
             """Register a Pydantic model in the model registry."""
             self.pydantic_model_registry[model.__name__] = model
@@ -57,10 +61,12 @@ class ToolManager:
                 if inspect.isclass(field_type) and issubclass(field_type, BaseModel):
                     register_nested_models(field_type, visited)
                 # Check if the field type is a generic list containing a subclass of BaseModel
-                elif (isinstance(field_type, types.GenericAlias) and
-                      field_type.__origin__ is list and
-                      inspect.isclass(field_type.__args__[0]) and 
-                      issubclass(field_type.__args__[0], BaseModel)):
+                elif (
+                    isinstance(field_type, types.GenericAlias)
+                    and field_type.__origin__ is list
+                    and inspect.isclass(field_type.__args__[0])
+                    and issubclass(field_type.__args__[0], BaseModel)
+                ):
                     register_nested_models(field_type.__args__[0], visited)
 
         visited_models: set = set()
@@ -69,7 +75,9 @@ class ToolManager:
 
     def format_tools(self) -> list[dict[str, Any]]:
         """Format the tools for the model input."""
-        formatted_tools = [self._pydantic_to_toolspec(model) for model in self.tool_schemas]
+        formatted_tools = [
+            self._pydantic_to_toolspec(model) for model in self.tool_schemas
+        ]
         for n, formatted_tool in enumerate(formatted_tools):
             logger.debug(f"Tool {n + 1}:\n{json.dumps(formatted_tool, indent=4)}")
         return formatted_tools
@@ -84,7 +92,10 @@ class ToolManager:
         Returns:
             dict[str, Any]: A dictionary representing the toolSpec for the input model.
         """
-        def convert_schema(schema: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
+
+        def convert_schema(
+            schema: dict[str, Any], defs: dict[str, Any]
+        ) -> dict[str, Any]:
             if "$ref" in schema:
                 ref_key = schema["$ref"].split("/")[-1]
                 return convert_schema(defs[ref_key], defs)
@@ -94,7 +105,14 @@ class ToolManager:
                 if key in schema:
                     result[key] = schema[key]
 
-            for constraint in ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minItems", "maxItems"]:
+            for constraint in [
+                "minimum",
+                "maximum",
+                "exclusiveMinimum",
+                "exclusiveMaximum",
+                "minItems",
+                "maxItems",
+            ]:
                 if constraint in schema:
                     result[constraint] = schema[constraint]
 
@@ -114,15 +132,17 @@ class ToolManager:
         schema = model.model_json_schema()
         defs = schema.get("$defs", {})
 
-        description = model.__doc__.strip() if model.__doc__ else schema.get("description", f"Model for {schema['title']}")
+        description = (
+            model.__doc__.strip()
+            if model.__doc__
+            else schema.get("description", f"Model for {schema['title']}")
+        )
 
         return {
             "toolSpec": {
                 "name": schema["title"],
                 "description": description,
-                "inputSchema": {
-                    "json": convert_schema(schema, defs)
-                }
+                "inputSchema": {"json": convert_schema(schema, defs)},
             }
         }
 
@@ -142,8 +162,8 @@ class ToolManager:
         if not isinstance(tool, dict):
             raise ValueError("Input tool must be a dictionary.")
 
-        model_name = tool.get('name')
-        input_data = tool.get('input', {})
+        model_name = tool.get("name")
+        input_data = tool.get("input", {})
 
         if model_name is None or model_name not in self.pydantic_model_registry:
             raise ValueError("Invalid or missing 'name' in input tool.")
@@ -151,7 +171,9 @@ class ToolManager:
         model_class = self.pydantic_model_registry[model_name]
         return model_class.model_validate(input_data)
 
-    def process_tool_use(self, tool: dict[str, Any]) -> Tuple[BaseModel, dict[str, Any]]:
+    def process_tool_use(
+        self, tool: dict[str, Any]
+    ) -> Tuple[BaseModel, dict[str, Any]]:
         """
         Process the tool use request.
 
@@ -166,12 +188,14 @@ class ToolManager:
         """
         try:
             parsed_tool_call = self.parse_model(tool)
-            tool_function = self.tool_processors.get(tool["name"], self._default_process_function)
+            tool_function = self.tool_processors.get(
+                tool["name"], self._default_process_function
+            )
             tool_output = tool_function(parsed_tool_call)
 
             tool_result = {
-                "toolUseId": tool['toolUseId'],
-                "content": [{"json": tool_output}]
+                "toolUseId": tool["toolUseId"],
+                "content": [{"json": tool_output}],
             }
 
             logger.debug(f"Tool result: {json.dumps(tool_result, indent=4)}")

@@ -1,11 +1,12 @@
-import os
 import json
-from typing import Any, Callable, List, Tuple
+import os
+from typing import Any, Callable, Tuple
+
+import faiss  # type: ignore
+import numpy as np
 import streamlit as st
 from pydantic import BaseModel, Field
-import faiss
-from sentence_transformers import SentenceTransformer
-import numpy as np
+from sentence_transformers import SentenceTransformer  # type: ignore
 
 from bedrock_toolkit.bedrock_client import BedrockClient
 from bedrock_toolkit.conversation_manager import ConversationManager
@@ -16,9 +17,10 @@ from bedrock_toolkit.streamlit_utils import (
     clear_chat_history,
     create_sidebar_options,
     display_messages,
-    display_model_response
+    display_model_response,
 )
 from bedrock_toolkit.tool_manager import ToolManager
+
 
 def main() -> None:
     """Local FAISS Search Agent Example for Python Files"""
@@ -29,7 +31,7 @@ def main() -> None:
     aws_region: str = "us-east-1"
 
     # Step 1: Create sidebar options
-    options: dict[str, str | bool | int] = create_sidebar_options()
+    options = create_sidebar_options()
 
     # Step 2: Configure logger with sidebar option
     logger_manager: LoggerManager = LoggerManager()
@@ -39,34 +41,47 @@ def main() -> None:
     # Step 3: Define your Pydantic model for FAISS search
     class RepositorySearch(BaseModel):
         """Request format for local FAISS search request"""
+
         query: str = Field(..., description="Search query to look up")
-        max_results: int = Field(5, ge=1, le=10, description="Max search results to return")
+        max_results: int = Field(
+            5, ge=1, le=10, description="Max search results to return"
+        )
 
     # Step 4: Define your tool processor for FAISS search
     def process_faiss_search(request: RepositorySearch) -> dict[str, Any]:
-        logger.info(f"Received FAISS search request:\n{json.dumps(request.model_dump(), indent=2)}")
+        logger.info(
+            f"Received FAISS search request:\n{json.dumps(request.model_dump(), indent=2)}"
+        )
 
         try:
             # Perform the search
             query_embedding: np.ndarray = model.encode([request.query])[0]
             distances: np.ndarray
             indices: np.ndarray
-            distances, indices = index.search(np.array([query_embedding]), request.max_results)
+            distances, indices = index.search(
+                np.array([query_embedding]), request.max_results
+            )
 
             results: list[dict[str, str | float]] = []
             for i, idx in enumerate(indices[0]):
-                results.append({
-                    "file": file_paths[idx],
-                    "content": documents[idx],
-                    "relevance_score": float(1 - distances[0][i]),  # Convert distance to similarity score
-                })
+                results.append(
+                    {
+                        "file": file_paths[idx],
+                        "content": documents[idx],
+                        "relevance_score": float(
+                            1 - distances[0][i]
+                        ),  # Convert distance to similarity score
+                    }
+                )
 
             response: dict[str, str | list[dict[str, str | float]]] = {
                 "query": request.query,
                 "results": results,
             }
 
-            logger.info("FAISS search completed successfully. Turn on debug logging for more details.")
+            logger.info(
+                "FAISS search completed successfully. Turn on debug logging for more details."
+            )
             logger.debug(f"FAISS search response:\n{json.dumps(response, indent=2)}")
             return response
         except Exception as e:
@@ -129,7 +144,7 @@ def main() -> None:
         for root, _, files in os.walk(toolkit_dir):
             for filename in files:
                 if filename.endswith(".py"):
-                    file_path: str = os.path.join(root, filename)
+                    file_path: str = os.path.join(root, filename)  # type: ignore
                     with open(file_path, "r") as file:
                         documents.append(file.read())
                         file_paths.append(os.path.relpath(file_path, base_path))
@@ -137,8 +152,10 @@ def main() -> None:
         return documents, file_paths
 
     @st.cache_resource
-    def setup_faiss_index(documents: list[str]) -> Tuple[SentenceTransformer, faiss.IndexFlatL2]:
-        model: SentenceTransformer = SentenceTransformer('all-MiniLM-L6-v2')
+    def setup_faiss_index(
+        documents: list[str],
+    ) -> Tuple[SentenceTransformer, faiss.IndexFlatL2]:
+        model: SentenceTransformer = SentenceTransformer("all-MiniLM-L6-v2")
         embeddings: np.ndarray = model.encode(documents)
 
         index: faiss.IndexFlatL2 = faiss.IndexFlatL2(embeddings.shape[1])
@@ -185,14 +202,16 @@ def main() -> None:
                         use_streaming=options["use_streaming"],
                         invoke_limit=options["invoke_limit"],
                         max_retries=options["max_retries"],
-                        write_stream=chat_write_stream  # Using the chat_write_stream function
+                        write_stream=chat_write_stream,  # Using the chat_write_stream function
                     )
                     # Add response to session state
                     st.session_state.streamed_text = streamed_text
                     st.session_state.response_data = response_data
 
                     # Add assistant response to chat history
-                    st.session_state.messages.append({"role": "assistant", "content": streamed_text})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": streamed_text}
+                    )
 
                 except Exception as e:
                     logger.exception("An unexpected error occurred")
@@ -206,10 +225,13 @@ def main() -> None:
 
     # Display the model response or messages if they were successful
     if "streamed_text" in st.session_state and "response_data" in st.session_state:
-        display_model_response(st.session_state.streamed_text, st.session_state.response_data)
+        display_model_response(
+            st.session_state.streamed_text, st.session_state.response_data
+        )
     # If there was an error, only display the messages
     elif "messages" in st.session_state and len(st.session_state.messages):
         display_messages(st.session_state.messages)
+
 
 if __name__ == "__main__":
     main()

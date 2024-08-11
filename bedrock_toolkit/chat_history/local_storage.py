@@ -1,4 +1,5 @@
-""" Local storage for chat history. """
+"""Local storage for chat history."""
+
 from typing import Any
 
 from bedrock_toolkit.chat_history.base import ChatHistoryStorage

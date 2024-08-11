@@ -1,4 +1,5 @@
-""" Example of a conversational agent using the Bedrock Toolkit with Tavily Search """
+"""Example of a conversational agent using the Bedrock Toolkit with Tavily Search"""
+
 import json
 import os
 from typing import Any, Callable, Dict
@@ -11,18 +12,21 @@ from bedrock_toolkit.bedrock_client import BedrockClient
 from bedrock_toolkit.conversation_manager import ConversationManager
 from bedrock_toolkit.logger_manager import LoggerManager
 from bedrock_toolkit.model_runner import ModelRunner
-from bedrock_toolkit.streamlit_utils import (chat_write_stream,
-                                             clear_chat_history,
-                                             create_sidebar_options,
-                                             display_messages,
-                                             display_model_response)
+from bedrock_toolkit.streamlit_utils import (
+    chat_write_stream,
+    clear_chat_history,
+    create_sidebar_options,
+    display_messages,
+    display_model_response,
+)
 from bedrock_toolkit.tool_manager import ToolManager
 
 # Set the page layout to wide mode
-#st.set_page_config(layout="wide")
+# st.set_page_config(layout="wide")
+
 
 def main() -> None:
-    """ Internet Agent Example using Tavily Search """
+    """Internet Agent Example using Tavily Search"""
 
     st.title("Internet Agent Example")
     st.subheader("Powered by Tavily Search")
@@ -41,17 +45,26 @@ def main() -> None:
 
     # Step 3: Define your Pydantic model for Tavily search
     class InternetSearch(BaseModel):
-        """ Request format for Tavily internet search request """
+        """Request format for Tavily internet search request"""
+
         query: str = Field(..., description="Search query to look up")
         max_results: int = Field(10, ge=3, description="Max search results to return")
-        search_depth: str = Field("advanced", description="The depth of the search, 'basic' or 'advanced'")
-        topic: str = Field("general", description="The topic of the search, 'general' or 'news'")
-        include_images: bool = Field(False, description="Include a list of query-related images")
-        #include_answer: bool = Field(False, description="Weather to include a short answer to original query")
+        search_depth: str = Field(
+            "advanced", description="The depth of the search, 'basic' or 'advanced'"
+        )
+        topic: str = Field(
+            "general", description="The topic of the search, 'general' or 'news'"
+        )
+        include_images: bool = Field(
+            False, description="Include a list of query-related images"
+        )
+        # include_answer: bool = Field(False, description="Weather to include a short answer to original query")
 
     # Step 4: Define your tool processor for Tavily search
     def process_tavily_search(request: InternetSearch) -> Dict[str, Any]:
-        logger.info(f"Received Tavily search request:\n{json.dumps(request.model_dump(), indent=2)}")
+        logger.info(
+            f"Received Tavily search request:\n{json.dumps(request.model_dump(), indent=2)}"
+        )
 
         # Initialize Tavily client (make sure to set TAVILY_API_KEY in your environment)
         client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
@@ -65,10 +78,12 @@ def main() -> None:
                 topic=request.topic,
                 use_cache=False,
                 include_images=request.include_images,
-                #include_answer=request.include_answer,
+                # include_answer=request.include_answer,
             )
 
-            logger.info("Tavily search completed successfully. Turn on debug logging for more details.")
+            logger.info(
+                "Tavily search completed successfully. Turn on debug logging for more details."
+            )
             logger.debug(f"Tavily search response:\n{json.dumps(response, indent=2)}")
             return response
         except Exception as e:
@@ -115,7 +130,6 @@ def main() -> None:
     if "conversation" not in st.session_state:
         st.session_state.conversation = get_conversation_manager()
 
-
     # Initialize or retrieve session state variables
     if "conversation" not in st.session_state:
         st.session_state.conversation = get_conversation_manager()
@@ -151,14 +165,16 @@ def main() -> None:
                         use_streaming=options["use_streaming"],
                         invoke_limit=options["invoke_limit"],
                         max_retries=options["max_retries"],
-                        write_stream=chat_write_stream  # Using the chat_write_stream function
+                        write_stream=chat_write_stream,  # Using the chat_write_stream function
                     )
                     # Add response to session state
                     st.session_state.streamed_text = streamed_text
                     st.session_state.response_data = response_data
 
                     # Add assistant response to chat history
-                    st.session_state.messages.append({"role": "assistant", "content": streamed_text})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": streamed_text}
+                    )
 
                 except Exception as e:
                     logger.exception("An unexpected error occurred")
@@ -172,10 +188,13 @@ def main() -> None:
 
     # Display the model response or messages if they were successful
     if "streamed_text" in st.session_state and "response_data" in st.session_state:
-        display_model_response(st.session_state.streamed_text, st.session_state.response_data)
+        display_model_response(
+            st.session_state.streamed_text, st.session_state.response_data
+        )
     # If there was an error, only display the messages
     elif "messages" in st.session_state and len(st.session_state.messages):
         display_messages(st.session_state.messages)
+
 
 if __name__ == "__main__":
     main()

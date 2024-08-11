@@ -1,4 +1,5 @@
-""" In-memory caching service for Bedrock Toolkit """
+"""In-memory caching service for Bedrock Toolkit"""
+
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,15 +16,20 @@ from bedrock_toolkit.logger_manager import LoggerManager
 
 logger = LoggerManager.get_logger()
 
+
 class CacheEntry:
-    def __init__(self, question: str, embedding: list[float], response: str, timestamp: float):
+    def __init__(
+        self, question: str, embedding: list[float], response: str, timestamp: float
+    ):
         self.question = question
         self.embedding = embedding
         self.response = response
         self.timestamp = timestamp
 
+
 class InMemoryCachingService(CacheService):
-    def __init__(self,
+    def __init__(
+        self,
         cache_size: int = 1000,
         embedding_model_id: str = "amazon.titan-embed-text-v2:0",
         embedding_size: int = 256,
@@ -39,10 +45,12 @@ class InMemoryCachingService(CacheService):
         self.max_workers = max_workers
 
         # Botocore config with adaptive retry strategy
-        config = Config(retries={'mode': 'adaptive', 'max_attempts': 10})
+        config = Config(retries={"mode": "adaptive", "max_attempts": 10})
 
         # Initialize Bedrock client with custom config
-        self.bedrock_client = boto3.client("bedrock-runtime", region_name=region, config=config)
+        self.bedrock_client = boto3.client(
+            "bedrock-runtime", region_name=region, config=config
+        )
         self.embedding_model_id = embedding_model_id
         self.embedding_size = embedding_size
 
@@ -59,7 +67,9 @@ class InMemoryCachingService(CacheService):
 
     def put(self, question: str, response: str):
         question_embedding = self.generate_embedding(question)
-        self.add_to_cache(question, CacheEntry(question, question_embedding, response, time.time()))
+        self.add_to_cache(
+            question, CacheEntry(question, question_embedding, response, time.time())
+        )
 
     def add_to_cache(self, question: str, entry: CacheEntry):
         if len(self.cache) >= self.cache_size:
@@ -71,7 +81,9 @@ class InMemoryCachingService(CacheService):
             oldest_question = min(self.cache, key=lambda k: self.cache[k].timestamp)
             del self.cache[oldest_question]
 
-    def find_similar_question(self, question: str, question_embedding: list[float]) -> Optional[str]:
+    def find_similar_question(
+        self, question: str, question_embedding: list[float]
+    ) -> Optional[str]:
         query_entities = self.extract_entities(question)
         current_time = time.time()
 
@@ -99,7 +111,9 @@ class InMemoryCachingService(CacheService):
                         max_similarity = similarity
                         most_similar_question = cached_question
                 except Exception as exc:
-                    logger.error(f"Question {cached_question} generated an exception: {exc}")
+                    logger.error(
+                        f"Question {cached_question} generated an exception: {exc}"
+                    )
 
         if most_similar_question:
             logger.info(f'Found similar question in cache: "{most_similar_question}"')
@@ -127,39 +141,48 @@ class InMemoryCachingService(CacheService):
                 return similarity
         return None
 
-    def cosine_similarity(self, embedding1: list[float], embedding2: list[float]) -> float:
-        return float(np.dot(embedding1, embedding2) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2)))
+    def cosine_similarity(
+        self, embedding1: list[float], embedding2: list[float]
+    ) -> float:
+        return float(
+            np.dot(embedding1, embedding2)
+            / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
+        )
 
     def extract_entities(self, query: str) -> list[Tuple[str, str]]:
         doc = self.nlp(query)
         entities = [(ent.text, ent.label_) for ent in doc.ents]
         return entities
 
-    def entities_match(self, entities1: list[Tuple[str, str]], entities2: list[Tuple[str, str]]) -> bool:
+    def entities_match(
+        self, entities1: list[Tuple[str, str]], entities2: list[Tuple[str, str]]
+    ) -> bool:
         # Implement your entity matching logic here
         return set(entities1) == set(entities2)
 
     def generate_embedding(self, text: str) -> list[float]:
-        logger.debug(f"Generating embeddings with Amazon Titan Text Embeddings V2 model {self.embedding_model_id}")
+        logger.debug(
+            f"Generating embeddings with Amazon Titan Text Embeddings V2 model {self.embedding_model_id}"
+        )
 
-        body = json.dumps({
-            "inputText": text,
-            "dimensions": self.embedding_size,
-            "normalize": True
-        })
+        body = json.dumps(
+            {"inputText": text, "dimensions": self.embedding_size, "normalize": True}
+        )
 
         try:
             response = self.bedrock_client.invoke_model(
-                body=body, 
-                modelId=self.embedding_model_id, 
-                accept="application/json", 
-                contentType="application/json"
+                body=body,
+                modelId=self.embedding_model_id,
+                accept="application/json",
+                contentType="application/json",
             )
-            response_body = json.loads(response.get('body').read())
-            embedding = response_body['embedding']
+            response_body = json.loads(response.get("body").read())
+            embedding = response_body["embedding"]
 
             # Further normalize and reduce dimension if needed
-            embedding = self.reduce_emb_dim(np.array(embedding), target_dim=self.embedding_size)
+            embedding = self.reduce_emb_dim(
+                np.array(embedding), target_dim=self.embedding_size
+            )
 
             return embedding.tolist()
         except boto3.exceptions.Boto3Error as e:
@@ -172,7 +195,9 @@ class InMemoryCachingService(CacheService):
         """
         return embedding / linalg.norm(embedding, axis=-1, keepdims=True)
 
-    def reduce_emb_dim(self, embedding: np.ndarray, target_dim: int, normalize: bool = True) -> np.ndarray:
+    def reduce_emb_dim(
+        self, embedding: np.ndarray, target_dim: int, normalize: bool = True
+    ) -> np.ndarray:
         """
         Reduce the embedding dimension and optionally normalize it.
         """

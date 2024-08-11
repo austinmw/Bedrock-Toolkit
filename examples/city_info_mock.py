@@ -1,4 +1,5 @@
-""" LLM Agent Weather and City Information Example (Mock APIs) """
+"""LLM Agent Weather and City Information Example (Mock APIs)"""
+
 import streamlit as st
 from typing import Any, Callable
 from pydantic import BaseModel, Field
@@ -13,8 +14,9 @@ from bedrock_toolkit.streamlit_utils import (
     display_model_response,
 )
 
+
 def main() -> None:
-    """ LLM Agent Weather and City Information Example (Mock APIs)
+    """LLM Agent Weather and City Information Example (Mock APIs)
 
     This example demonstrates how the assistant uses two mock API tools:
 
@@ -77,7 +79,6 @@ def main() -> None:
     strongly-typed data structures, enabling robust and flexible tool use in AI applications.
     """
 
-
     st.title("LLM Agent")
     st.subheader("City Weather and Info Example (Mock APIs)")
 
@@ -91,7 +92,9 @@ def main() -> None:
 
     # Step 3: Define your Pydantic models
     class WeatherRequest(BaseModel):
-        city: str = Field(..., description="Name of the city to get weather information for")
+        city: str = Field(
+            ..., description="Name of the city to get weather information for"
+        )
         country: str = Field(..., description="Country where the city is located")
 
     class CityInfoRequest(BaseModel):
@@ -100,21 +103,25 @@ def main() -> None:
 
     # Step 4: Define your tool processors
     def get_weather_info(request: WeatherRequest) -> dict[str, str | int]:
-        logger.debug(f"Received weather request: city={request.city}, country={request.country}")
+        logger.debug(
+            f"Received weather request: city={request.city}, country={request.country}"
+        )
         weather_data: dict[str, str | int] = {
             "temperature": "75 degrees Fahrenheit",
             "condition": "Partly cloudy",
-            "humidity": int(65)
+            "humidity": int(65),
         }
         logger.info(f"Returning weather data: {weather_data}")
         return weather_data
 
     def get_city_info(request: CityInfoRequest) -> dict[str, str | int]:
-        logger.debug(f"Received city info request: city={request.city}, country={request.country}")
+        logger.debug(
+            f"Received city info request: city={request.city}, country={request.country}"
+        )
         city_data: dict[str, str | int] = {
             "population": 8_419_000,
             "country": "United States",
-            "timezone": "Eastern Time Zone (ET)"
+            "timezone": "Eastern Time Zone (ET)",
         }
         logger.info(f"Returning city info data: {city_data}")
         return city_data
@@ -138,7 +145,9 @@ def main() -> None:
 
     # Main area for user input with prepopulated question
     default_prompt = "Provide weather and city info for NYC"
-    user_prompt: str = st.text_area("Enter your prompt", value=default_prompt, height=100)
+    user_prompt: str = st.text_area(
+        "Enter your prompt", value=default_prompt, height=100
+    )
 
     if st.button("Run"):
         if user_prompt:
@@ -161,7 +170,7 @@ def main() -> None:
                 # Display the response
                 display_model_response(streamed_text, response_data)
 
-                st.success('Processing complete!')
+                st.success("Processing complete!")
 
             except Exception as e:
                 logger.exception("An unexpected error occurred")
@@ -170,6 +179,7 @@ def main() -> None:
 
         else:
             st.warning("Please enter a prompt before running.")
+
 
 if __name__ == "__main__":
     main()

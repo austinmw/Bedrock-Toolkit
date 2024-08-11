@@ -1,4 +1,5 @@
-""" LLM Agent Weather and City Information Example (Real APIs) """
+"""LLM Agent Weather and City Information Example (Real APIs)"""
+
 import streamlit as st
 from typing import Any, Callable
 from pydantic import BaseModel, Field
@@ -15,8 +16,9 @@ from bedrock_toolkit.streamlit_utils import (
     display_model_response,
 )
 
+
 def main() -> None:
-    """ LLM Agent Weather and City Information Example (Real APIs)
+    """LLM Agent Weather and City Information Example (Real APIs)
 
     This example shows the assistant using two real API tools:
 
@@ -34,7 +36,9 @@ def main() -> None:
     st.subheader("City Weather and Info Example (Real APIs)")
 
     # Step 1: Create sidebar options (excluding tool display for now)
-    options = create_sidebar_options(default_model="anthropic.claude-3-sonnet-20240229-v1:0")
+    options = create_sidebar_options(
+        default_model="anthropic.claude-3-sonnet-20240229-v1:0"
+    )
 
     # Step 2: Configure logger with sidebar option
     logger_manager = LoggerManager()
@@ -44,16 +48,28 @@ def main() -> None:
     # Step 3: Define your Pydantic models
     class WeatherRequest(BaseModel):
         """Model for requesting the current weather from a location."""
-        location: str = Field(..., description="The name of the location for which you want the current weather. Example locations are New York and London.")
+
+        location: str = Field(
+            ...,
+            description="The name of the location for which you want the current weather. Example locations are New York and London.",
+        )
 
     class LocationInfoRequest(BaseModel):
         """Model for requesting background information about a location."""
-        location: str = Field(..., description="The name of the location for which you want the background information. Example locations are New York and London.")
-        char_limit: int = Field(2000, description="The maximum number of characters to return from the Wikipedia page. Default is 2000.")
+
+        location: str = Field(
+            ...,
+            description="The name of the location for which you want the background information. Example locations are New York and London.",
+        )
+        char_limit: int = Field(
+            2000,
+            description="The maximum number of characters to return from the Wikipedia page. Default is 2000.",
+        )
 
     # Step 4: Define your tool processors
     class LocationNotFoundError(Exception):
         """Raised when a location isn't found."""
+
         pass
 
     def get_current_weather(location: str) -> dict[str, str] | None:
@@ -63,24 +79,29 @@ def main() -> None:
             response = requests.get(f"https://wttr.in/{location}?format=%t+%C&u")
             if response.status_code == 200:
                 weather_data = response.text.strip().split()
-                return {"temperature": weather_data[0], "condition": " ".join(weather_data[1:])}
+                return {
+                    "temperature": weather_data[0],
+                    "condition": " ".join(weather_data[1:]),
+                }
             else:
                 raise LocationNotFoundError(f"Location {location} not found.")
         except requests.RequestException as e:
             logger.error(f"Error fetching weather data: {e}")
             raise LocationNotFoundError(f"Location {location} not found.")
 
-    def get_location_info(location: str, char_limit: int = 2000) -> dict[str, str] | None:
+    def get_location_info(
+        location: str, char_limit: int = 2000
+    ) -> dict[str, str] | None:
         """Returns background information for the requested location using Wikipedia."""
         logger.info(f"Getting background information for {location}...")
         headers = {
-            'User-Agent': 'LocationInfoBot/1.0 (https://example.org/locationbot/; locationbot@example.org)'
+            "User-Agent": "LocationInfoBot/1.0 (https://example.org/locationbot/; locationbot@example.org)"
         }
 
         wiki_wiki = wikipediaapi.Wikipedia(
-            language='en',
+            language="en",
             extract_format=wikipediaapi.ExtractFormat.WIKI,
-            user_agent=headers['User-Agent']
+            user_agent=headers["User-Agent"],
         )
         page = wiki_wiki.page(location)
 
@@ -123,7 +144,9 @@ def main() -> None:
 
     # Main area for user input with prepopulated question
     default_prompt = "Provide weather and city info for NYC"
-    user_prompt: str = st.text_area("Enter your prompt", value=default_prompt, height=100)
+    user_prompt: str = st.text_area(
+        "Enter your prompt", value=default_prompt, height=100
+    )
 
     if st.button("Run"):
         if user_prompt:
@@ -146,7 +169,7 @@ def main() -> None:
                 # Display the response
                 display_model_response(streamed_text, response_data)
 
-                st.success('Processing complete!')
+                st.success("Processing complete!")
 
             except Exception as e:
                 logger.exception("An unexpected error occurred")
@@ -155,6 +178,7 @@ def main() -> None:
 
         else:
             st.warning("Please enter a prompt before running.")
+
 
 if __name__ == "__main__":
     main()

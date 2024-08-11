@@ -1,4 +1,5 @@
-""" Base class for chat history storage. """
+"""Base class for chat history storage."""
+
 from abc import ABC, abstractmethod
 from typing import Any
 

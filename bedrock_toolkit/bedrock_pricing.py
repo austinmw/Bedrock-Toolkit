@@ -1,4 +1,4 @@
-""" Amazon Bedrock On-Demand Pricing """
+"""Amazon Bedrock On-Demand Pricing"""
 
 # Price per 1,000 input tokens
 # https://aws.amazon.com/bedrock/pricing/
@@ -42,5 +42,5 @@ BEDROCK_PRICING: dict[str, dict[str, dict[str, float]]] = {
         "anthropic.claude-3-sonnet-20240229-v1:0": {"input": 0.003, "output": 0.015},
         "mistral.mistral-large-2402-v1:0": {"input": 0.004, "output": 0.012},
         "mistral.mistral-small-2402-v1:0": {"input": 0.001, "output": 0.003},
-    }
+    },
 }

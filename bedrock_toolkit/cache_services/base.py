@@ -1,4 +1,5 @@
-""" Base class for cache services. """
+"""Base class for cache services."""
+
 from abc import ABC, abstractmethod
 from typing import Optional
 

@@ -1,4 +1,4 @@
-""" bedrock_toolkit package """
+"""bedrock_toolkit package"""
 
 from .bedrock_client import BedrockClient
 from .conversation_manager import ConversationManager

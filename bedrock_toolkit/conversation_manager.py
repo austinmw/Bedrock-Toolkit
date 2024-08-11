@@ -1,16 +1,16 @@
-""" ConversationManager class for managing conversational interactions. """
+"""ConversationManager class for managing conversational interactions."""
 
 import time
 from typing import Any, Callable, Generator
 
 from bedrock_toolkit.cache_services import CacheService, create_cache_service
-from bedrock_toolkit.chat_history import (ChatHistoryStorage,
-                                          create_chat_history_storage)
+from bedrock_toolkit.chat_history import ChatHistoryStorage, create_chat_history_storage
 from bedrock_toolkit.logger_manager import LoggerManager
 from bedrock_toolkit.model_runner import ModelRunner
 from bedrock_toolkit.context_appender import ContextAppender
 
 logger = LoggerManager.get_logger()
+
 
 class ConversationManager:
     def __init__(
@@ -25,8 +25,12 @@ class ConversationManager:
         self.context_appender = context_appender
         self.max_turns = max_turns
         self.turn_count = 0
-        self.chat_history: ChatHistoryStorage = create_chat_history_storage(chat_history_config)
-        self.cache_service: CacheService | None = create_cache_service(cache_config) if cache_config else None
+        self.chat_history: ChatHistoryStorage = create_chat_history_storage(
+            chat_history_config
+        )
+        self.cache_service: CacheService | None = (
+            create_cache_service(cache_config) if cache_config else None
+        )
 
     @property
     def messages(self) -> list[dict[str, Any]]:
@@ -52,16 +56,17 @@ class ConversationManager:
     def reset_messages(
         self,
         write_stream: Callable[
-        [Generator[str | dict[str, Any], None, None]],
-        tuple[str, dict[str, Any] | None]] | None = None,
+            [Generator[str | dict[str, Any], None, None]],
+            tuple[str, dict[str, Any] | None],
+        ]
+        | None = None,
     ) -> bool:
-
         """Reset the conversation if max_turns is reached."""
         user_message_count = sum(
-            1 for message in self.messages 
-            if message['role'] == 'user' and not any(
-                'toolResult' in content for content in message['content']
-            )
+            1
+            for message in self.messages
+            if message["role"] == "user"
+            and not any("toolResult" in content for content in message["content"])
         )
 
         if self.max_turns and user_message_count > self.max_turns:
@@ -83,7 +88,11 @@ class ConversationManager:
         invoke_limit: int | None = None,
         max_retries: int = 3,
         inference_config: dict[str, Any] | None = {"maxTokens": 4096, "temperature": 0},
-        write_stream: Callable[[Generator[str | dict[str, Any], None, None]], tuple[str, dict[str, Any] | None]] | None = None
+        write_stream: Callable[
+            [Generator[str | dict[str, Any], None, None]],
+            tuple[str, dict[str, Any] | None],
+        ]
+        | None = None,
     ) -> tuple[str, dict[str, Any] | None]:
         """
         Generate a response from the model.
@@ -110,7 +119,15 @@ class ConversationManager:
         if self.reset_messages(write_stream=write_stream):
             return "Conversation history reset due to max turns exceeded.", None
 
-        streamed_text, response_data = self._get_response(text, model_id, use_streaming, invoke_limit, max_retries, inference_config, write_stream)
+        streamed_text, response_data = self._get_response(
+            text,
+            model_id,
+            use_streaming,
+            invoke_limit,
+            max_retries,
+            inference_config,
+            write_stream,
+        )
 
         self._update_conversation(streamed_text, response_data)
 
@@ -130,19 +147,23 @@ class ConversationManager:
         invoke_limit: int | None,
         max_retries: int,
         inference_config: dict[str, Any] | None,
-        write_stream: Callable | None
+        write_stream: Callable | None,
     ) -> tuple[str, dict[str, Any] | None]:
         if self.cache_service:
             cached_response = self.cache_service.get(text)
             if cached_response:
                 return self._handle_cached_response(cached_response, write_stream)
 
-        generate_text_args = self._build_generate_text_args(model_id, use_streaming, invoke_limit, max_retries, inference_config)
+        generate_text_args = self._build_generate_text_args(
+            model_id, use_streaming, invoke_limit, max_retries, inference_config
+        )
         response_generator = self.model_runner.generate_text(**generate_text_args)
 
         return self._process_response(response_generator, write_stream)
 
-    def _handle_cached_response(self, cached_response: str, write_stream: Callable | None) -> tuple[str, dict[str, Any] | None]:
+    def _handle_cached_response(
+        self, cached_response: str, write_stream: Callable | None
+    ) -> tuple[str, dict[str, Any] | None]:
         def cached_generator():
             yield cached_response
             message = {"role": "assistant", "content": [{"text": cached_response}]}
@@ -159,7 +180,7 @@ class ConversationManager:
         use_streaming: bool,
         invoke_limit: int | None,
         max_retries: int,
-        inference_config: dict[str, Any] | None
+        inference_config: dict[str, Any] | None,
     ) -> dict[str, Any]:
         args = {
             "model_id": model_id,
@@ -173,24 +194,26 @@ class ConversationManager:
         return args
 
     def _process_response(
-        self,
-        response_generator: Generator,
-        write_stream: Callable | None
+        self, response_generator: Generator, write_stream: Callable | None
     ) -> tuple[str, dict[str, Any] | None]:
         if write_stream:
             return write_stream(response_generator)
         return self.default_write_stream(response_generator)
 
-    def _update_conversation(self, streamed_text: str, response_data: dict[str, Any] | None) -> None:
+    def _update_conversation(
+        self, streamed_text: str, response_data: dict[str, Any] | None
+    ) -> None:
         messages = self.messages
-        if response_data and 'messages' in response_data:
-            messages = response_data['messages']
+        if response_data and "messages" in response_data:
+            messages = response_data["messages"]
         else:
             messages.append({"role": "assistant", "content": [{"text": streamed_text}]})
         self.chat_history.save_messages(messages)
         self.turn_count += 1
 
-    def default_write_stream(self, stream: Generator[str | dict[str, Any], None, None]) -> tuple[str, dict[str, Any] | None]:
+    def default_write_stream(
+        self, stream: Generator[str | dict[str, Any], None, None]
+    ) -> tuple[str, dict[str, Any] | None]:
         """
         Default handler for streaming output.
 
@@ -206,7 +229,7 @@ class ConversationManager:
         for item in stream:
             if isinstance(item, str):
                 result += item
-                print(item, end='', flush=True)  # Print each chunk as it arrives
+                print(item, end="", flush=True)  # Print each chunk as it arrives
             elif isinstance(item, dict):
                 response_data = item
 

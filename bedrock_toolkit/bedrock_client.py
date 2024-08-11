@@ -1,4 +1,5 @@
-""" BedrockClient class for interacting with the Bedrock API. """
+"""BedrockClient class for interacting with the Bedrock API."""
+
 import json
 from typing import Any, Dict, Generator, List, Optional
 
@@ -9,6 +10,7 @@ from bedrock_toolkit.bedrock_pricing import BEDROCK_PRICING
 from bedrock_toolkit.logger_manager import LoggerManager
 
 logger = LoggerManager.get_logger()
+
 
 class BedrockClient:
     def __init__(self, region: str, config: Optional[Config] = None):
@@ -21,16 +23,13 @@ class BedrockClient:
         """
         if config is None:
             config = Config(
-                retries={
-                    'max_attempts': 10,
-                    'mode': 'adaptive'
-                },
+                retries={"max_attempts": 10, "mode": "adaptive"},
                 read_timeout=120,
-                connect_timeout=30
+                connect_timeout=30,
             )
 
         self.client = boto3.client(
-            service_name='bedrock-runtime',
+            service_name="bedrock-runtime",
             config=config,
             region_name=region,
         )
@@ -49,7 +48,7 @@ class BedrockClient:
         messages: List[Dict[str, Any]],
         system_prompt: Dict[str, str],
         tool_config: Dict[str, Any],
-        inference_config: Dict[str, Any] = {"maxTokens": 4096, "temperature": 0}
+        inference_config: Dict[str, Any] = {"maxTokens": 4096, "temperature": 0},
     ) -> Dict[str, Any]:
         """
         Handle non-streaming conversations with the Bedrock model.
@@ -134,5 +133,7 @@ class BedrockClient:
         model_pricing = self.pricing[self.region][model_id]
         input_tokens = usage["inputTokens"]
         output_tokens = usage["outputTokens"]
-        total_price = (input_tokens / 1000) * model_pricing["input"] + (output_tokens / 1000) * model_pricing["output"]
+        total_price = (input_tokens / 1000) * model_pricing["input"] + (
+            output_tokens / 1000
+        ) * model_pricing["output"]
         return total_price
