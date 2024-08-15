@@ -4,9 +4,20 @@ import json
 from collections import Counter
 from typing import Any, Generator, Literal
 
+from mypy_boto3_bedrock_runtime.type_defs import (
+    ConverseStreamResponseTypeDef,
+    InferenceConfigurationTypeDef,
+    MessageOutputTypeDef,
+    MessageTypeDef,
+    SystemContentBlockTypeDef,
+    ToolConfigurationTypeDef,
+    ToolResultBlockOutputTypeDef,
+)
+
+from bedrock_toolkit.bedrock_client import BedrockClient
 from bedrock_toolkit.logger_manager import LoggerManager
 from bedrock_toolkit.prompts import ERROR_PROMPT_SUFFIX, SYSTEM_PROMPT
-
+from bedrock_toolkit.tool_manager import ToolManager
 
 logger = LoggerManager.get_logger()
 
@@ -14,9 +25,9 @@ logger = LoggerManager.get_logger()
 class ModelRunner:
     def __init__(
         self,
-        bedrock_client,
-        tool_manager,
-        system_prompt: dict[str, str] = SYSTEM_PROMPT,
+        bedrock_client: BedrockClient,
+        tool_manager: ToolManager | None = None,
+        system_prompt: SystemContentBlockTypeDef = SYSTEM_PROMPT,
         first_tool_choice: Literal["any", "auto"] = "any",
     ) -> None:
         """
@@ -38,9 +49,12 @@ class ModelRunner:
     def generate_text(
         self,
         model_id: str,
-        messages: list[dict[str, Any]],
+        messages: list[MessageTypeDef | MessageOutputTypeDef],
         use_streaming: bool,
-        inference_config: dict[str, Any] = {"maxTokens": 4096, "temperature": 0},
+        inference_config: InferenceConfigurationTypeDef = {
+            "maxTokens": 4096,
+            "temperature": 0,
+        },
         invoke_limit: int | None = None,
         max_retries: int = 3,
     ) -> Generator[str | dict[str, Any], None, None]:
@@ -60,7 +74,7 @@ class ModelRunner:
 
         self.inference_config = inference_config
 
-        original_messages = messages.copy()
+        original_messages = list(messages)
         original_user_message = original_messages[-1]["content"][0]["text"]
         error_message_pairs = []
 
@@ -100,7 +114,7 @@ class ModelRunner:
                 error_message_pairs.append((str(e), tool_inputs))
 
                 # Reset messages to original state
-                messages = original_messages.copy()
+                messages = original_messages
 
                 # Create error_context with all previous error-message pairs
                 error_context = "\n\nNote: Previous attempts resulted in errors. Here's a summary:\n"
@@ -121,17 +135,22 @@ class ModelRunner:
     def _stream_messages(
         self,
         model_id: str,
-        messages: list[dict[str, Any]],
-        system_prompt: dict,
-        tool_config: dict[str, Any],
-    ) -> Generator[str | tuple[dict, str, dict[str, Any], Counter], None, None]:
+        messages: list[MessageTypeDef | MessageOutputTypeDef],
+        system_prompt: SystemContentBlockTypeDef,
+        tool_config: ToolConfigurationTypeDef | None = None,
+    ) -> Generator[
+        str
+        | tuple[ConverseStreamResponseTypeDef, str, MessageOutputTypeDef, Counter[Any]],
+        None,
+        None,
+    ]:
         """Streams messages to a model and processes the response."""
         response = self.bedrock_client.converse_stream(
             model_id, messages, system_prompt, tool_config, self.inference_config
         )
 
         stop_reason = ""
-        message: dict = {"content": []}
+        message: MessageOutputTypeDef = {"role": "assistant", "content": []}
         text = ""
         tool_use = {}
         stream_usage: Counter = Counter()
@@ -157,7 +176,7 @@ class ModelRunner:
                 elif "contentBlockStop" in chunk:
                     if "input" in tool_use:
                         tool_use["input"] = json.loads(tool_use["input"])
-                        message["content"].append({"toolUse": tool_use})
+                        message["content"].append({"toolUse": tool_use})  # type: ignore
                         tool_use = {}
                     else:
                         message["content"].append({"text": text})
@@ -168,12 +187,12 @@ class ModelRunner:
             logger.error(f"Error during streaming: {str(e)}")
         finally:
             # Ensure we always return the values, even if an exception occurred
-            yield response, stop_reason, message, stream_usage
+            yield (response, stop_reason, message, stream_usage)
 
     def _generate_text_core(
         self,
         model_id: str,
-        messages: list[dict[str, Any]],
+        messages: list[MessageTypeDef | MessageOutputTypeDef],
         use_streaming: bool,
         invoke_limit: int | None,
     ) -> Generator[str | dict[str, Any], None, None]:
@@ -195,14 +214,16 @@ class ModelRunner:
         invoke_count = 0
         usage: Counter = Counter()
 
-        tool_config = {
-            "tools": self.tool_manager.format_tools(),
-            "toolChoice": {self.first_tool_choice: {}},
-        }
+        tool_config: ToolConfigurationTypeDef | None = None
+        if self.tool_manager:
+            tool_config = {
+                "tools": self.tool_manager.format_tools(),
+                "toolChoice": {self.first_tool_choice: {}},  # type: ignore
+            }
 
         while stop_reason == "tool_use":
             # Set the toolChoice to auto after the first tool use to allow the model to respond without tools
-            if not first_tool_use:
+            if not first_tool_use and tool_config:
                 tool_config["toolChoice"] = {"auto": {}}
             first_tool_use = False
 
@@ -243,13 +264,20 @@ class ModelRunner:
                         yield item  # Yield the text chunk
                     else:
                         # This is the final yield with the return values
-                        response, stop_reason, message, stream_usage = item
+                        (
+                            converse_stream_response,
+                            stop_reason,
+                            output_message,
+                            stream_usage,
+                        ) = item
 
-                logger.debug(f"Bedrock response (streamed):\n{response}")
+                logger.debug(
+                    f"Bedrock response (streamed):\n{converse_stream_response}"
+                )
                 usage.update(stream_usage)
 
             else:
-                response = self.bedrock_client.converse(
+                converse_response = self.bedrock_client.converse(
                     model_id,
                     messages,
                     self.system_prompt,
@@ -257,21 +285,23 @@ class ModelRunner:
                     self.inference_config,
                 )
 
-                message = response["output"]["message"]
-                stop_reason = response["stopReason"]
+                output_message = converse_response["output"]["message"]
+                stop_reason = converse_response["stopReason"]
 
                 for content in message["content"]:
                     if "text" in content:
                         yield content["text"]
 
-                logger.debug(f"Bedrock response:\n{json.dumps(response, indent=4)}")
-                usage.update(response["usage"])
+                logger.debug(
+                    f"Bedrock response:\n{json.dumps(converse_response, indent=4)}"
+                )
+                usage.update(converse_response["usage"])
 
-            messages.append(message)
+            messages.append(output_message)
 
-            if stop_reason == "tool_use":
-                tool_results = []
-                for content in message["content"]:
+            if stop_reason == "tool_use" and self.tool_manager:
+                tool_results: list[ToolResultBlockOutputTypeDef] = []
+                for content in output_message["content"]:
                     if "toolUse" in content:
                         tool = content["toolUse"]
                         logger.debug(
@@ -284,7 +314,7 @@ class ModelRunner:
                         tool_results.append(tool_result)
 
                 if tool_results:
-                    tool_result_message = {
+                    tool_result_message: MessageOutputTypeDef = {
                         "role": "user",
                         "content": [{"toolResult": result} for result in tool_results],
                     }

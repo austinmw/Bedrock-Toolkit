@@ -16,13 +16,13 @@ class ConversationManager:
     def __init__(
         self,
         model_runner: ModelRunner,
-        context_appender: ContextAppender | None = None,
+        context_appenders: list[ContextAppender] | None = None,
         max_turns: int | None = None,
         chat_history_config: dict[str, Any] = {"type": "local"},
         cache_config: dict[str, Any] | None = None,
     ) -> None:
         self.model_runner = model_runner
-        self.context_appender = context_appender
+        self.context_appenders = context_appenders
         self.max_turns = max_turns
         self.turn_count = 0
         self.chat_history: ChatHistoryStorage = create_chat_history_storage(
@@ -111,8 +111,10 @@ class ConversationManager:
         """
         start_time = time.time()
 
-        if self.context_appender:
-            text = self.context_appender.append_context(text)
+        if self.context_appenders:
+            # Apply each context appender in order
+            for appender in self.context_appenders:
+                text = appender.append_context(text)
 
         self.add_user_message(text)
 

@@ -5,6 +5,11 @@ import json
 import types
 from typing import Any, Callable, Tuple, Type
 
+from mypy_boto3_bedrock_runtime.type_defs import (
+    ToolResultBlockOutputTypeDef,
+    ToolTypeDef,
+    ToolUseBlockOutputTypeDef,
+)
 from pydantic import BaseModel
 
 from bedrock_toolkit.logger_manager import LoggerManager
@@ -73,7 +78,7 @@ class ToolManager:
         for model in self.tool_schemas:
             register_nested_models(model, visited_models)
 
-    def format_tools(self) -> list[dict[str, Any]]:
+    def format_tools(self) -> list[ToolTypeDef]:
         """Format the tools for the model input."""
         formatted_tools = [
             self._pydantic_to_toolspec(model) for model in self.tool_schemas
@@ -82,7 +87,7 @@ class ToolManager:
             logger.debug(f"Tool {n + 1}:\n{json.dumps(formatted_tool, indent=4)}")
         return formatted_tools
 
-    def _pydantic_to_toolspec(self, model: Type[BaseModel]) -> dict[str, Any]:
+    def _pydantic_to_toolspec(self, model: Type[BaseModel]) -> ToolTypeDef:
         """
         Convert a Pydantic model to a toolSpec dictionary, including additional field arguments.
 
@@ -146,7 +151,7 @@ class ToolManager:
             }
         }
 
-    def parse_model(self, tool: dict[str, Any]) -> BaseModel:
+    def parse_model(self, tool: ToolUseBlockOutputTypeDef) -> BaseModel:
         """
         Parse a tool dictionary into the appropriate Pydantic model.
 
@@ -172,8 +177,9 @@ class ToolManager:
         return model_class.model_validate(input_data)
 
     def process_tool_use(
-        self, tool: dict[str, Any]
-    ) -> Tuple[BaseModel, dict[str, Any]]:
+        self,
+        tool: ToolUseBlockOutputTypeDef,
+    ) -> Tuple[BaseModel, ToolResultBlockOutputTypeDef]:
         """
         Process the tool use request.
 
@@ -193,7 +199,7 @@ class ToolManager:
             )
             tool_output = tool_function(parsed_tool_call)
 
-            tool_result = {
+            tool_result: ToolResultBlockOutputTypeDef = {
                 "toolUseId": tool["toolUseId"],
                 "content": [{"json": tool_output}],
             }

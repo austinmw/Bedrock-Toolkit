@@ -2,7 +2,9 @@
 
 from textwrap import dedent
 
-SYSTEM_PROMPT = {
+from mypy_boto3_bedrock_runtime.type_defs import SystemContentBlockTypeDef
+
+SYSTEM_PROMPT: SystemContentBlockTypeDef = {
     "text": dedent("""\
         You are an intelligent conversational assistant capable of calling functions to gather all necessary information to answer a user's question comprehensively.
         Note that all of your standard text responses will be displayed using markdown, so you can use markdown formatting as needed.

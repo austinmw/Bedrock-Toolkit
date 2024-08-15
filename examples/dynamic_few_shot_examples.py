@@ -134,7 +134,7 @@ def main() -> None:
 
         return ConversationManager(
             model_runner=get_model_runner(),
-            context_appender=context_appender,
+            context_appenders=[context_appender],
         )
 
     # Initialize or retrieve session state variables
