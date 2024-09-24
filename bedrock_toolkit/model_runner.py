@@ -331,8 +331,9 @@ class ModelRunner:
         logger.debug(f"Total token usage:\n{json.dumps(usage, indent=2)}")
 
         total_price = self.bedrock_client.calculate_cost(usage, model_id)
-        total_price_str = f"${total_price:.3f} USD"
-        logger.info(f"Last reply cost: {total_price_str}")
+        total_price_str = f"${total_price:.6f}" if total_price < 0.001 else f"${total_price:.3f}"
+        logger.info(f"Token usage - Input: {usage['inputTokens']}, Output: {usage['outputTokens']}")
+        logger.info(f"Last reply cost: {total_price_str} USD")
 
         response_dict = {
             "messages": messages,
